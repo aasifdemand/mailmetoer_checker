@@ -3,7 +3,9 @@ FROM node:18-slim
 # Install system dependencies for Puppeteer and Xvfb
 RUN apt-get update && apt-get install -y \
     wget \
+    curl \
     gnupg \
+    ca-certificates \
     xvfb \
     libnss3 \
     libxss1 \
@@ -16,8 +18,8 @@ RUN apt-get update && apt-get install -y \
     --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Google Chrome directly from .deb to avoid GPG key issues
-RUN wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb \
+# Install Google Chrome directly from .deb
+RUN curl -LO https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb \
     && apt-get update \
     && apt-get install -y ./google-chrome-stable_current_amd64.deb --no-install-recommends \
     && rm google-chrome-stable_current_amd64.deb \

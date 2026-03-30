@@ -174,13 +174,8 @@ class HiveWorker {
             connect: { defaultViewport: null }
         };
 
-        if (this.proxy) {
-            config.proxy = {
-                host: String(this.proxy.host),
-                port: parseInt(this.proxy.port, 10),
-                username: String(this.proxy.username),
-                password: String(this.proxy.password)
-            };
+        if (this.proxy && this.proxy.host) {
+            config.args.push(`--proxy-server=http://${this.proxy.host}:${this.proxy.port}`);
         }
 
         try {
@@ -365,6 +360,13 @@ async function processHiveParallel(emails, checkInterval, socket, isRetry = fals
         try {
             console.log(`[Hive] Worker ${worker.id} processing ${email}`);
             page = await worker.browser.newPage();
+
+            if (worker.proxy && worker.proxy.username) {
+                await page.authenticate({
+                    username: worker.proxy.username,
+                    password: worker.proxy.password
+                });
+            }
 
             // Stagger inside worker to avoid identical timing
             await delay(Math.random() * 3000);

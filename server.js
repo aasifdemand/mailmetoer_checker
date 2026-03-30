@@ -1,7 +1,9 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
-const { connect } = require('puppeteer-real-browser');
+const puppeteer = require('puppeteer-extra');
+const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+puppeteer.use(StealthPlugin());
 const proxies = require('./proxies');
 const PQueue = require('p-queue').default;
 require('dotenv').config();
@@ -156,33 +158,29 @@ class HiveWorker {
 
         console.log(`[HiveWorker ${this.id}] Initializing with proxy: ${this.proxy ? this.proxy.host : 'DIRECT'}`);
 
-        const config = {
-            headless: "auto",
-            args: [
-                '--no-sandbox', 
-                '--disable-setuid-sandbox',
-                '--disable-dev-shm-usage',
-                '--disable-gpu'
-            ],
-            customConfig: {
-                userDataDir: this.profilePath,
-                envVars: process.env
-            },
-            disableXvfb: true, // Crucial: use the Docker xvfb-run display, don't spawn new ones!
-            skipTarget: true,
-            fingerprint: true,
-            turnstile: true,
-            connect: { defaultViewport: null }
-        };
+        const args = [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-gpu',
+            '--disable-background-timer-throttling',
+            '--disable-renderer-backgrounding',
+        ];
 
         if (this.proxy && this.proxy.host) {
-            config.args.push(`--proxy-server=http://${this.proxy.host}:${this.proxy.port}`);
+            args.push(`--proxy-server=http://${this.proxy.host}:${this.proxy.port}`);
         }
 
         try {
-            const result = await connect(config);
-            this.browser = result.browser;
+            this.browser = await puppeteer.launch({
+                headless: true,
+                executablePath: '/usr/bin/google-chrome-stable',
+                args,
+                userDataDir: this.profilePath,
+                ignoreHTTPSErrors: true,
+            });
             this.browser.on('disconnected', () => { this.browser = null; });
+            console.log(`[HiveWorker ${this.id}] Browser launched successfully.`);
         } catch (err) {
             console.error(`[HiveWorker ${this.id}] Launch failed:`, err.message);
         }

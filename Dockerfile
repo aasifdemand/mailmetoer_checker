@@ -39,7 +39,5 @@ RUN mkdir -p uploads/profiles
 
 EXPOSE 3000
 
-# We use xvfb-run to start the app with a virtual display
-# -a: automatically find free display
-# -e /dev/stdout: print errors to standard out so docker logs can see them
-CMD ["xvfb-run", "-a", "-e", "/dev/stdout", "--server-args=-screen 0 1280x1024x24", "node", "server.js"]
+# PRB manages its own Xvfb virtual display via disableXvfb:false
+CMD ["node", "server.js"]

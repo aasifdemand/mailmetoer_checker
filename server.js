@@ -164,10 +164,8 @@ class HiveWorker {
                 '--disable-dev-shm-usage',
                 '--disable-gpu',
             ],
-            customConfig: {
-                userDataDir: this.profilePath,
-            },
-            disableXvfb: true, // No virtual display needed in headless mode
+            customConfig: {}, // No persistent profile - avoids stale proxy settings
+            disableXvfb: true,
             skipTarget: true,
             fingerprint: false,
             turnstile: false,

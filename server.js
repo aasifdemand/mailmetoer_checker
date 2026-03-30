@@ -304,10 +304,13 @@ async function processFileStream(options, concurrency, checkInterval, socket) {
     try {
         if (ext === '.csv') {
             const parser = fs.createReadStream(filePath).pipe(csv());
+            // csv-parser already consumes row 1 (header) internally.
+            // Start at 1 so first data event = rowCount 2 = spreadsheet row 2.
+            rowCount = 1;
             for await (const data of parser) {
                 if (shouldStop) break;
                 rowCount++;
-                if (rowCount < (startRow || 1)) continue;
+                if (rowCount < (startRow || 2)) continue;
                 if (endRow && rowCount > endRow) break;
                 let email = data[columnName];
                 if (email && email.includes('@')) {

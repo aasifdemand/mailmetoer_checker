@@ -305,6 +305,14 @@ async function startProcessing(emails, batchSize, checkInterval, socket, fileOpt
     isProcessing = false;
 }
 
+
+// Strict email validator - skips garbage rows like _archive_, *@, -2@
+function isValidEmail(email) {
+    if (!email || typeof email !== 'string') return false;
+    // Must match standard email format
+    return /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/.test(email.trim());
+}
+
 async function processFileStream(options, concurrency, checkInterval, socket) {
     const { filename, columnName, startRow, endRow } = options;
     const filePath = path.join('uploads', filename);
@@ -324,7 +332,7 @@ async function processFileStream(options, concurrency, checkInterval, socket) {
                 let email = data[columnName];
                 if (email && email.includes('@')) {
                     email = String(email).replace(/^['"\s]+|['"\s]+$/g, '').trim();
-                    batch.push(email);
+                    if (isValidEmail(email)) batch.push(email);
                 }
                 if (batch.length >= 1000) { await processHiveParallel(batch, checkInterval, socket); batch.length = 0; }
             }
@@ -349,7 +357,7 @@ async function processFileStream(options, concurrency, checkInterval, socket) {
                     let email = cell ? String(cell.value || "").trim() : "";
                     if (email && email.includes('@')) {
                         email = String(email).replace(/^['"\s]+|['"\s]+$/g, '').trim();
-                        batch.push(email);
+                        if (isValidEmail(email)) batch.push(email);
                     }
                     if (batch.length >= 500) { await processHiveParallel(batch, checkInterval, socket); batch.length = 0; }
                 }
@@ -373,6 +381,13 @@ async function processHiveParallel(emails, checkInterval, socket, isRetry = fals
                 retryQueue.push(email);
                 return;
             }
+        }
+
+        // Rotate proxy every 50 emails to avoid rate-limiting from a single IP
+        if (!isRetry && processedCount > 0 && processedCount % 50 === 0) {
+            console.log(`[Hive] Rotating proxy after ${processedCount} emails...`);
+            await worker.close();
+            await worker.init(); // picks a new proxy from the round-robin list
         }
 
         worker.activeTabs++;

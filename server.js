@@ -143,6 +143,9 @@ class HiveWorker {
         this.id = id;
         this.browser = null;
         this.profilePath = path.join(__dirname, 'uploads', 'profiles', `w${id}`);
+        if (!fs.existsSync(this.profilePath)) {
+            fs.mkdirSync(this.profilePath, { recursive: true });
+        }
         this.proxy = null;
         this.activeTabs = 0;
     }

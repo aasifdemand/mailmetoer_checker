@@ -158,7 +158,12 @@ class HiveWorker {
 
         const config = {
             headless: "auto",
-            args: ['--no-sandbox', '--disable-setuid-sandbox'],
+            args: [
+                '--no-sandbox', 
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-gpu'
+            ],
             customConfig: {
                 userDataDir: this.profilePath
             },
@@ -170,10 +175,10 @@ class HiveWorker {
 
         if (this.proxy) {
             config.proxy = {
-                host: this.proxy.host,
-                port: this.proxy.port,
-                username: this.proxy.username,
-                password: this.proxy.password
+                host: String(this.proxy.host),
+                port: parseInt(this.proxy.port, 10),
+                username: String(this.proxy.username),
+                password: String(this.proxy.password)
             };
         }
 

@@ -171,12 +171,23 @@ class HiveWorker {
             args.push(`--proxy-server=http://${this.proxy.host}:${this.proxy.port}`);
         }
 
+        // Clean up any stale Chrome SingletonLock files from previous crashes
+        try {
+            const lockFiles = ['SingletonLock', 'SingletonCookie', 'SingletonSocket'];
+            for (const lockFile of lockFiles) {
+                const lockPath = path.join(this.profilePath, lockFile);
+                if (fs.existsSync(lockPath)) {
+                    fs.unlinkSync(lockPath);
+                    console.log(`[HiveWorker ${this.id}] Removed stale lock: ${lockFile}`);
+                }
+            }
+        } catch (e) { /* ignore */ }
+
         try {
             this.browser = await puppeteer.launch({
                 headless: true,
                 executablePath: '/usr/bin/google-chrome-stable',
                 args,
-                userDataDir: this.profilePath,
                 ignoreHTTPSErrors: true,
             });
             this.browser.on('disconnected', () => { this.browser = null; });
@@ -247,7 +258,7 @@ async function startProcessing(emails, batchSize, checkInterval, socket, fileOpt
     if (proxies.proxies.length === 0) {
         updateStatus("⚠️ No proxies found. Performance will be limited.", "warning", socket);
     }
-    
+
     // Dynamically rebuild hive based on UI selection
     hive = new WorkerHive(1, batchSize || 10);
 

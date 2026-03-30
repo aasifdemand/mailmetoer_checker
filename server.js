@@ -168,7 +168,15 @@ class HiveWorker {
         ];
 
         if (this.proxy && this.proxy.host) {
-            args.push(`--proxy-server=http://${this.proxy.host}:${this.proxy.port}`);
+            const { host, port, username, password } = this.proxy;
+            if (username && password) {
+                // Credentials must be in the URL for HTTPS CONNECT tunnel auth to work
+                const encodedUser = encodeURIComponent(username);
+                const encodedPass = encodeURIComponent(password);
+                args.push(`--proxy-server=http://${encodedUser}:${encodedPass}@${host}:${port}`);
+            } else {
+                args.push(`--proxy-server=http://${host}:${port}`);
+            }
         }
 
         // Clean up any stale Chrome SingletonLock files from previous crashes

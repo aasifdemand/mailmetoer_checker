@@ -14,3 +14,5 @@ services:
       - PORT=3000
     restart: unless-stopped
     shm_size: '2gb' # Puppeteer needs shared memory to avoid crashes
+    init: true
+    tty: true

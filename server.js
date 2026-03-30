@@ -1,10 +1,7 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
-const puppeteer = require('puppeteer-extra');
-const StealthPlugin = require('puppeteer-extra-plugin-stealth');
-const proxyChain = require('proxy-chain');
-puppeteer.use(StealthPlugin());
+const { connect } = require('puppeteer-real-browser');
 const proxies = require('./proxies');
 const PQueue = require('p-queue').default;
 require('dotenv').config();
@@ -159,49 +156,34 @@ class HiveWorker {
 
         console.log(`[HiveWorker ${this.id}] Initializing with proxy: ${this.proxy ? this.proxy.host : 'DIRECT'}`);
 
-        const args = [
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage',
-            '--disable-gpu',
-            '--disable-background-timer-throttling',
-            '--disable-renderer-backgrounding',
-        ];
+        const config = {
+            headless: true,
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-gpu',
+            ],
+            customConfig: {
+                userDataDir: this.profilePath,
+            },
+            disableXvfb: true, // No virtual display needed in headless mode
+            skipTarget: true,
+            fingerprint: false,
+            turnstile: false,
+            connectOption: { defaultViewport: null },
+        };
 
-        // Use proxy-chain to create an authenticated local proxy tunnel.
-        // Chrome cannot pass credentials in --proxy-server URL, so we create
-        // a local unauthenticated proxy that proxy-chain forwards to Webshare.
-        if (this.proxy && this.proxy.host) {
-            const { host, port, username, password } = this.proxy;
-            const upstreamUrl = username
-                ? `http://${encodeURIComponent(username)}:${encodeURIComponent(password)}@${host}:${port}`
-                : `http://${host}:${port}`;
-            try {
-                this.localProxyUrl = await proxyChain.anonymizeProxy(upstreamUrl);
-                args.push(`--proxy-server=${this.localProxyUrl}`);
-                console.log(`[HiveWorker ${this.id}] Local proxy tunnel: ${this.localProxyUrl}`);
-            } catch (e) {
-                console.warn(`[HiveWorker ${this.id}] proxy-chain failed, using DIRECT:`, e.message);
-                this.localProxyUrl = null;
-            }
-        }
+        // Webshare datacenter proxies are blocked by mailmeteor.com (ERR_TUNNEL_CONNECTION_FAILED)
+        // Using direct connection — VPS IP reaches mailmeteor.com fine at this volume
 
         try {
-            this.browser = await puppeteer.launch({
-                headless: true,
-                executablePath: '/usr/bin/google-chrome-stable',
-                args,
-                ignoreHTTPSErrors: true,
-            });
+            const result = await connect(config);
+            this.browser = result.browser;
             this.browser.on('disconnected', () => { this.browser = null; });
             console.log(`[HiveWorker ${this.id}] Browser launched successfully.`);
         } catch (err) {
             console.error(`[HiveWorker ${this.id}] Launch failed:`, err.message);
-            // Clean up local proxy if browser fails
-            if (this.localProxyUrl) {
-                await proxyChain.closeAnonymizedProxy(this.localProxyUrl, true).catch(() => {});
-                this.localProxyUrl = null;
-            }
         }
     }
 
@@ -209,10 +191,6 @@ class HiveWorker {
         if (this.browser) {
             try { await this.browser.close(); } catch (e) { }
             this.browser = null;
-        }
-        if (this.localProxyUrl) {
-            await proxyChain.closeAnonymizedProxy(this.localProxyUrl, true).catch(() => {});
-            this.localProxyUrl = null;
         }
     }
 }
@@ -378,13 +356,11 @@ async function processHiveParallel(emails, checkInterval, socket, isRetry = fals
         if (shouldStop) return;
 
         const worker = hive.getAvailableWorker();
+        // If worker browser is gone, push to retry queue - do NOT self-repair here
+        // to avoid cascading proxy-cycling loops
         if (!worker || !worker.browser) {
-            // Self-repair worker if it died
-            if (worker) await worker.init();
-            if (!worker || !worker.browser) {
-                retryQueue.push(email);
-                return;
-            }
+            retryQueue.push(email);
+            return;
         }
 
         // Rotate proxy every 50 emails to avoid rate-limiting from a single IP
@@ -411,9 +387,10 @@ async function processHiveParallel(emails, checkInterval, socket, isRetry = fals
             await delay(Math.random() * 3000);
 
             await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36');
-            await page.goto('https://mailmeteor.com/email-checker', { waitUntil: 'domcontentloaded', timeout: 45000 });
+            // No timeout - wait as long as needed for the page to load
+            await page.goto('https://mailmeteor.com/email-checker', { waitUntil: 'domcontentloaded', timeout: 0 });
 
-            await page.waitForSelector('#email-to-check', { visible: true, timeout: 25000 });
+            await page.waitForSelector('#email-to-check', { visible: true, timeout: 0 });
             await page.type('#email-to-check', email, { delay: Math.random() * 50 + 20 });
             await page.click('button.btn-tertiary');
 
@@ -499,7 +476,8 @@ function injectEmailAndSubmit(email) {
 
 async function pollForResults(page, email, maxAttempts, checkInterval) {
     let attempts = 0;
-    while (attempts < maxAttempts && !shouldStop) {
+    // Poll indefinitely until result found or user stops - no max timeout
+    while (!shouldStop) {
         try {
             const r = await page.evaluate(scrapeResults);
             if (r.found) {
@@ -513,14 +491,14 @@ async function pollForResults(page, email, maxAttempts, checkInterval) {
                 await delay(checkInterval);
             }
             attempts++;
-            if (attempts % 10 === 0) console.log(`[Polling] ${email} - Attempt ${attempts}/${maxAttempts}`);
+            if (attempts % 10 === 0) console.log(`[Polling] ${email} - Attempt ${attempts} (no limit)`);
         } catch (e) {
             await delay(checkInterval);
             attempts++;
         }
     }
-    console.log(`[Timeout/Error] ${email} failed after ${attempts} attempts`);
-    return { email, status: "error", format: "-", professional: "-", domain: "-", mailbox: "-" };
+    console.log(`[Stopped] ${email} after ${attempts} attempts`);
+    return { email, status: "unknown", format: "-", professional: "-", domain: "-", mailbox: "-" };
 }
 
 function scrapeResults() {

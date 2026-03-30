@@ -165,7 +165,8 @@ class HiveWorker {
                 '--disable-gpu'
             ],
             customConfig: {
-                userDataDir: this.profilePath
+                userDataDir: this.profilePath,
+                envVars: process.env
             },
             disableXvfb: true, // Crucial: use the Docker xvfb-run display, don't spawn new ones!
             skipTarget: true,

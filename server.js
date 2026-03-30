@@ -300,8 +300,11 @@ async function processFileStream(options, concurrency, checkInterval, socket) {
                 rowCount++;
                 if (rowCount < (startRow || 1)) continue;
                 if (endRow && rowCount > endRow) break;
-                const email = data[columnName];
-                if (email && email.includes('@')) batch.push(email.trim());
+                let email = data[columnName];
+                if (email && email.includes('@')) {
+                    email = String(email).replace(/^['"\s]+|['"\s]+$/g, '').trim();
+                    batch.push(email);
+                }
                 if (batch.length >= 1000) { await processHiveParallel(batch, checkInterval, socket); batch.length = 0; }
             }
             if (batch.length > 0) await processHiveParallel(batch, checkInterval, socket);
@@ -322,8 +325,11 @@ async function processFileStream(options, concurrency, checkInterval, socket) {
                     if (rowCount < (startRow || 1)) continue;
                     if (endRow && rowCount > endRow) break;
                     const cell = row.getCell(colIndex);
-                    const email = cell ? String(cell.value || "").trim() : "";
-                    if (email && email.includes('@')) batch.push(email);
+                    let email = cell ? String(cell.value || "").trim() : "";
+                    if (email && email.includes('@')) {
+                        email = String(email).replace(/^['"\s]+|['"\s]+$/g, '').trim();
+                        batch.push(email);
+                    }
                     if (batch.length >= 500) { await processHiveParallel(batch, checkInterval, socket); batch.length = 0; }
                 }
             }
@@ -374,6 +380,7 @@ async function processHiveParallel(emails, checkInterval, socket, isRetry = fals
                 } else {
                     results.push(result);
                 }
+                socket.emit('newResult', result);
             }
 
             if (result.status === "error" || result.status === "unknown") {

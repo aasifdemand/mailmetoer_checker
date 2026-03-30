@@ -12,6 +12,8 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3000
+    env_file:
+      - .env
     restart: unless-stopped
     shm_size: '2gb' # Puppeteer needs shared memory to avoid crashes
     init: true

@@ -238,6 +238,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Socket Events
   socket.on("status", msg => log(msg.text, msg.status));
+  socket.on("newResult", result => {
+      currentResults.push(result);
+  });
   socket.on("progress", msg => {
     updateProgress(msg.current, msg.total);
     validSpan.textContent=msg.stats.valid; 
@@ -251,7 +254,13 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   socket.on("processingComplete", msg => {
     isProcessing=false; startBtn.disabled=false; stopBtn.disabled=true; clearBtn.disabled=false; tabCountSelect.disabled=false;
+    if (msg.results) currentResults = msg.results;
     log("✅ Complete!", "success");
+  });
+  socket.on("processingStopped", msg => {
+    isProcessing=false; startBtn.disabled=false; stopBtn.disabled=true; clearBtn.disabled=false; tabCountSelect.disabled=false;
+    if (msg.results) currentResults = msg.results;
+    log("⏹ Stopped", "warning");
   });
 
   // Helpers

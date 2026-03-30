@@ -231,9 +231,8 @@ class WorkerHive {
     }
 }
 
-const hive = new WorkerHive(2, 10); // 2 Browsers x 10 Tabs = 20 Parallel slots
-
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+let hive = new WorkerHive(1, 10); // 1 Browser x N Tabs (Fixes Docker Memory Exhaustion)
 
 async function startProcessing(emails, batchSize, checkInterval, socket, fileOptions = null) {
     if (isProcessing) return;
@@ -250,15 +249,18 @@ async function startProcessing(emails, batchSize, checkInterval, socket, fileOpt
     if (proxies.proxies.length === 0) {
         updateStatus("⚠️ No proxies found. Performance will be limited.", "warning", socket);
     }
+    
+    // Dynamically rebuild hive based on UI selection
+    hive = new WorkerHive(1, batchSize || 10);
 
-    updateStatus(`🚀 Warming up the Hive (2 browsers)...`, "info", socket);
+    updateStatus(`🚀 Warming up the Hive (1 browser)...`, "info", socket);
     await hive.start();
 
     if (fileOptions) {
-        updateStatus(`🚀 Hive Active: Verifying file with 20 parallel tabs...`, "info", socket);
-        await processFileStream(fileOptions, 20, checkInterval, socket);
+        updateStatus(`🚀 Hive Active: Verifying file with ${hive.tabsPerWorker} parallel tabs...`, "info", socket);
+        await processFileStream(fileOptions, hive.tabsPerWorker, checkInterval, socket);
     } else {
-        updateStatus(`🚀 Hive Active: Verifying ${emails.length} emails with 20 parallel tabs...`, "info", socket);
+        updateStatus(`🚀 Hive Active: Verifying ${emails.length} emails with ${hive.tabsPerWorker} parallel tabs...`, "info", socket);
         await processHiveParallel(emails, checkInterval, socket);
     }
 

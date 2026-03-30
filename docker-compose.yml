@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  mailmeteor-checker:
+    build: .
+    container_name: mailmeteor-checker
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./uploads:/usr/src/app/uploads
+      - ./nodemon.json:/usr/src/app/nodemon.json
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    restart: unless-stopped
+    shm_size: '2gb' # Puppeteer needs shared memory to avoid crashes

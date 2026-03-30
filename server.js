@@ -154,7 +154,7 @@ class HiveWorker {
         console.log(`[HiveWorker ${this.id}] Initializing with proxy: ${this.proxy ? this.proxy.host : 'DIRECT'}`);
 
         const config = {
-            headless: false,
+            headless: "auto",
             args: ['--no-sandbox', '--disable-setuid-sandbox'],
             customConfig: {
                 userDataDir: this.profilePath
@@ -209,7 +209,7 @@ class WorkerHive {
             await worker.init();
             this.workers.push(worker);
             // Absolute safety for Windows startup
-            await delay(6000); 
+            await delay(6000);
         }
         this.isReady = true;
     }

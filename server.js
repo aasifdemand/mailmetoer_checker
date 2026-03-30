@@ -3,6 +3,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+const proxyChain = require('proxy-chain');
 puppeteer.use(StealthPlugin());
 const proxies = require('./proxies');
 const PQueue = require('p-queue').default;
@@ -167,29 +168,23 @@ class HiveWorker {
             '--disable-renderer-backgrounding',
         ];
 
+        // Use proxy-chain to create an authenticated local proxy tunnel.
+        // Chrome cannot pass credentials in --proxy-server URL, so we create
+        // a local unauthenticated proxy that proxy-chain forwards to Webshare.
         if (this.proxy && this.proxy.host) {
             const { host, port, username, password } = this.proxy;
-            if (username && password) {
-                // Credentials must be in the URL for HTTPS CONNECT tunnel auth to work
-                const encodedUser = encodeURIComponent(username);
-                const encodedPass = encodeURIComponent(password);
-                args.push(`--proxy-server=http://${encodedUser}:${encodedPass}@${host}:${port}`);
-            } else {
-                args.push(`--proxy-server=http://${host}:${port}`);
+            const upstreamUrl = username
+                ? `http://${encodeURIComponent(username)}:${encodeURIComponent(password)}@${host}:${port}`
+                : `http://${host}:${port}`;
+            try {
+                this.localProxyUrl = await proxyChain.anonymizeProxy(upstreamUrl);
+                args.push(`--proxy-server=${this.localProxyUrl}`);
+                console.log(`[HiveWorker ${this.id}] Local proxy tunnel: ${this.localProxyUrl}`);
+            } catch (e) {
+                console.warn(`[HiveWorker ${this.id}] proxy-chain failed, using DIRECT:`, e.message);
+                this.localProxyUrl = null;
             }
         }
-
-        // Clean up any stale Chrome SingletonLock files from previous crashes
-        try {
-            const lockFiles = ['SingletonLock', 'SingletonCookie', 'SingletonSocket'];
-            for (const lockFile of lockFiles) {
-                const lockPath = path.join(this.profilePath, lockFile);
-                if (fs.existsSync(lockPath)) {
-                    fs.unlinkSync(lockPath);
-                    console.log(`[HiveWorker ${this.id}] Removed stale lock: ${lockFile}`);
-                }
-            }
-        } catch (e) { /* ignore */ }
 
         try {
             this.browser = await puppeteer.launch({
@@ -202,6 +197,11 @@ class HiveWorker {
             console.log(`[HiveWorker ${this.id}] Browser launched successfully.`);
         } catch (err) {
             console.error(`[HiveWorker ${this.id}] Launch failed:`, err.message);
+            // Clean up local proxy if browser fails
+            if (this.localProxyUrl) {
+                await proxyChain.closeAnonymizedProxy(this.localProxyUrl, true).catch(() => {});
+                this.localProxyUrl = null;
+            }
         }
     }
 
@@ -209,6 +209,10 @@ class HiveWorker {
         if (this.browser) {
             try { await this.browser.close(); } catch (e) { }
             this.browser = null;
+        }
+        if (this.localProxyUrl) {
+            await proxyChain.closeAnonymizedProxy(this.localProxyUrl, true).catch(() => {});
+            this.localProxyUrl = null;
         }
     }
 }

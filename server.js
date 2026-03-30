@@ -167,6 +167,7 @@ class HiveWorker {
             customConfig: {
                 userDataDir: this.profilePath
             },
+            disableXvfb: true, // Crucial: use the Docker xvfb-run display, don't spawn new ones!
             skipTarget: true,
             fingerprint: true,
             turnstile: true,

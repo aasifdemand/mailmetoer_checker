@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+:root {
+  --bg: #0d1117; --surface: #161b22; --surface2: #1c2333; --border: #30363d;
+  --text: #e6edf3; --text2: #8b949e; --accent: #58a6ff; --green: #3fb950;
+  --red: #f85149; --orange: #d29922; --blue: #58a6ff; --purple: #bc8cff; --gray: #6e7681;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  padding: 0; font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  background: var(--bg); color: var(--text); overflow-x: hidden;
+  min-height: 100vh;
+}
+
+.main-wrapper {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.header {
+  background: linear-gradient(135deg, #1a1e2e 0%, #0d1117 100%);
+  padding: 14px 18px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 10px;
+}
+.header .logo { font-size: 18px; font-weight: 800; background: linear-gradient(135deg, var(--accent), var(--purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.header .version { font-size: 10px; background: var(--accent); color: #000; padding: 2px 6px; border-radius: 4px; font-weight: 700; }
+
+.container { padding: 14px 18px; }
+
+.upload-zone {
+  border: 2px dashed var(--border); border-radius: 10px; padding: 14px;
+  text-align: center; cursor: pointer; transition: all .2s; margin-bottom: 10px;
+  background: var(--surface);
+}
+.upload-zone:hover { border-color: var(--accent); background: var(--surface2); }
+.upload-zone .icon { font-size: 22px; }
+.upload-zone .label { font-size: 12px; color: var(--text2); margin-top: 4px; }
+#fileName { font-size: 11px; color: var(--green); margin-top: 4px; }
+
+textarea {
+  width: 100%; height: 120px; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px; color: var(--text); font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; resize: vertical; outline: none; transition: border-color .2s;
+}
+textarea:focus { border-color: var(--accent); }
+
+.controls {
+  display: flex; gap: 8px; align-items: center; margin: 10px 0; flex-wrap: wrap;
+}
+.controls label { font-size: 12px; color: var(--text2); font-weight: 600; }
+.controls select, .controls input[type="number"] {
+  background: var(--surface); color: var(--text); border: 1px solid var(--border);
+  border-radius: 6px; padding: 5px 8px; font-size: 12px; outline: none;
+}
+.controls input[type="number"] { width: 70px; }
+.controls select:focus, .controls input[type="number"]:focus { border-color: var(--accent); }
+
+.btn-row { display: flex; gap: 6px; margin: 10px 0; flex-wrap: wrap; }
+
+button {
+  padding: 8px 16px; border: none; border-radius: 8px; cursor: pointer;
+  font-size: 12px; font-weight: 700; font-family: inherit; transition: all .15s;
+  display: flex; align-items: center; gap: 5px;
+}
+button:hover { transform: translateY(-1px); }
+button:active { transform: translateY(0); }
+button:disabled { opacity: .35; cursor: not-allowed; transform: none; }
+
+.btn-start { background: linear-gradient(135deg, #238636, #2ea043); color: #fff; }
+.btn-stop { background: linear-gradient(135deg, #da3633, #f85149); color: #fff; }
+.btn-copy { background: linear-gradient(135deg, #1f6feb, #388bfd); color: #fff; }
+.btn-dl { background: linear-gradient(135deg, #6e40c9, #8957e5); color: #fff; }
+.btn-clear { background: var(--surface2); color: var(--text2); border: 1px solid var(--border); }
+.btn-sm { padding: 6px 12px; font-size: 11px; background: var(--surface2); color: var(--text2); border: 1px solid var(--border); }
+
+.dl-row { display: none; gap: 6px; margin: 0 0 10px; }
+
+/* Progress */
+.progress-wrap { margin: 10px 0; }
+.progress-bar {
+  width: 100%; height: 8px; background: var(--surface2); border-radius: 4px;
+  overflow: hidden; position: relative;
+}
+.progress-fill {
+  height: 100%; width: 0%; border-radius: 4px; transition: width .4s ease;
+  background: linear-gradient(90deg, var(--green), #56d364, var(--green));
+  background-size: 200% 100%; animation: shimmer 2s ease infinite;
+}
+@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+.progress-text { font-size: 11px; color: var(--text2); margin-top: 4px; text-align: right; font-family: 'JetBrains Mono', monospace; }
+
+/* Stats */
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin: 20px 0; }
+.stat {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+  padding: 15px 10px; text-align: center; transition: all .2s;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+.stat:hover { border-color: var(--accent); }
+.stat .n { font-size: 20px; font-weight: 800; display: block; font-family: 'JetBrains Mono', monospace; }
+.stat .l { font-size: 9px; color: var(--text2); text-transform: uppercase; letter-spacing: .5px; font-weight: 600; }
+
+/* Log */
+.log {
+  height: 110px; overflow-y: auto; background: #000; border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px; margin: 8px 0;
+  font-family: 'JetBrains Mono', monospace; font-size: 10px;
+  scrollbar-width: thin; scrollbar-color: var(--border) transparent;
+}
+.log::-webkit-scrollbar { width: 5px; }
+.log::-webkit-scrollbar-track { background: transparent; }
+.log::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* Table */
+.table-wrap {
+  max-height: 500px; overflow-y: auto; border: 1px solid var(--border);
+  border-radius: 12px; margin-top: 20px;
+  scrollbar-width: thin; scrollbar-color: var(--border) transparent;
+  background: var(--surface);
+}
+.table-wrap::-webkit-scrollbar { width: 5px; }
+.table-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+table { width: 100%; border-collapse: collapse; font-size: 11px; }
+th {
+  background: var(--surface2); color: var(--accent); padding: 7px 10px;
+  position: sticky; top: 0; text-align: left; font-weight: 600;
+  font-size: 10px; text-transform: uppercase; letter-spacing: .5px;
+}
+td { padding: 5px 10px; border-bottom: 1px solid rgba(48,54,61,.5); }
+tr:hover td { background: rgba(88,166,255,.04); }
+
+.badge {
+  display: inline-block; padding: 2px 8px; border-radius: 10px;
+  font-size: 10px; font-weight: 700; letter-spacing: .3px;
+}
+.b-valid { background: rgba(63,185,80,.15); color: var(--green); }
+.b-invalid { background: rgba(248,81,73,.15); color: var(--red); }
+.b-risky { background: rgba(210,153,34,.15); color: var(--orange); }
+.b-unknown { background: rgba(88,166,255,.15); color: var(--blue); }
+.b-error { background: rgba(110,118,129,.15); color: var(--gray); }
+
+.retry-info { font-size: 11px; color: var(--orange); margin: 4px 0; font-family: 'JetBrains Mono', monospace; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="main-wrapper" style="display: flex; align-items: center; gap: 10px; padding: 0; width: 100%;">
+    <span class="logo">⚡ EndBounce Email Checker</span>
+    <span class="version">PRO v5</span>
+  </div>
+</div>
+
+<div class="main-wrapper">
+  <div class="container" style="padding: 0;">
+  
+  <div class="controls" id="existingFilesContainer" style="margin-bottom: 20px; display: none;">
+    <label>Use Existing File:</label>
+    <select id="existingFiles">
+      <option value="">-- Select a recently uploaded file --</option>
+    </select>
+  </div>
+
+  <div class="upload-zone" id="uploadArea">
+    <input type="file" id="excelFile" accept=".xlsx,.xls,.csv,.txt" hidden>
+    <div class="icon">📂</div>
+    <div class="label">Drop Excel / CSV / TXT here or click to upload</div>
+    <div id="fileName"></div>
+  </div>
+
+  <div class="controls" style="margin-top: 0; justify-content: space-between;">
+    <div style="display: flex; gap: 8px; align-items: center;">
+      <label>Fetch Rows:</label>
+      <input type="number" id="startRow" min="1" placeholder="Start">
+      <label>-</label>
+      <input type="number" id="endRow" min="1" placeholder="End">
+    </div>
+  </div>
+
+  <div class="controls" id="columnSelector" style="display: none; margin-bottom: 10px;">
+    <label>Email Column:</label>
+    <select id="emailColumn"></select>
+  </div>
+
+  <textarea id="emails" placeholder="Paste email addresses here (one per line)&#10;&#10;john@example.com&#10;jane@company.org&#10;test@domain.com"></textarea>
+
+
+  <div class="controls">
+    <label>Parallel Tabs:</label>
+    <select id="tabCount">
+      <option value="3">3 (safe)</option>
+      <option value="5">5</option>
+      <option value="10" selected>10</option>
+      <option value="15">15</option>
+      <option value="20">20 (fast)</option>
+      <option value="25">25</option>
+      <option value="30">30 (max)</option>
+      <option value="40">40 (ultra)</option>
+      <option value="50">50 (extreme)</option>
+    </select>
+    <div id="speedWarning" style="font-size:11px;color:var(--orange);margin-left:4px">⚡ Balanced</div>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn-start" id="startBtn">▶ Start</button>
+    <button class="btn-stop" id="stopBtn" disabled>⏹ Stop</button>
+    <button class="btn-copy" id="copyBtn">📋 Copy</button>
+    <button class="btn-dl" id="downloadBtn">📥 Download</button>
+    <button class="btn-clear" id="clearBtn">🗑 Clear</button>
+  </div>
+
+  <div class="dl-row" id="downloadOptions">
+    <button class="btn-sm" id="downloadCsvBtn">CSV</button>
+    <button class="btn-sm" id="downloadExcelBtn">Excel</button>
+    <button class="btn-sm" id="downloadTxtBtn">TXT</button>
+  </div>
+
+  <div class="progress-wrap">
+    <div class="progress-bar"><div id="progress" class="progress-fill"></div></div>
+    <div class="progress-text" id="progressText">0 / 0</div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><span class="n" id="processedCount">0</span><span class="l">Done</span></div>
+    <div class="stat"><span class="n" style="color:var(--green)" id="validCount">0</span><span class="l">Valid</span></div>
+    <div class="stat"><span class="n" style="color:var(--red)" id="invalidCount">0</span><span class="l">Invalid</span></div>
+    <div class="stat"><span class="n" style="color:var(--orange)" id="riskyCount">0</span><span class="l">Risky</span></div>
+    <div class="stat"><span class="n" style="color:var(--blue)" id="unknownCount">0</span><span class="l">Unknown</span></div>
+    <div class="stat"><span class="n" style="color:var(--gray)" id="errorCount">0</span><span class="l">Errors</span></div>
+    <div class="stat"><span class="n" style="color:var(--purple)" id="speedRate">0/s</span><span class="l">Speed</span></div>
+  </div>
+
+  <div id="retryInfo" class="retry-info" style="display:none"></div>
+
+  <div id="status" class="log"></div>
+
+  <div class="table-wrap">
+    <table id="previewTable">
+      <tr><th>Email</th><th>Status</th><th>Format</th><th>Domain</th><th>Mailbox</th></tr>
+    </table>
+  </div>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="xlsx.full.min.js"></script>
+<script src="popup.js"></script>
+</body>
+</html>

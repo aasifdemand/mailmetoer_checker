@@ -1,0 +1,4 @@
+{
+  "ignore": ["uploads/*", "uploads/**", "public/*"],
+  "delay": "2500"
+}

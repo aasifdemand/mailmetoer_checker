@@ -7,6 +7,7 @@ RUN apt-get update && apt-get install -y \
     gnupg \
     ca-certificates \
     xvfb \
+    xauth \
     libnss3 \
     libxss1 \
     libasound2 \
